@@ -1,8 +1,6 @@
 import java.io.File;
 import java.nio.file.Path;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.*;
 
 public class Graph {
     private final ArrayList<FileNode> nodeFiles;
@@ -13,7 +11,7 @@ public class Graph {
     public Graph(ArrayList<Path> files) {
         this.nodeFiles = new ArrayList<>();
         try {
-            for (Path i: files) {
+            for (Path i : files) {
                 nodeFiles.add(new FileNode(i, files));
             }
         } catch (RuntimeException e) {
@@ -30,57 +28,53 @@ public class Graph {
         if (!checkIsValid()) {
             return false;
         }
-        finalFiles = bfsRecursion();
+        finalFiles = topologicalKahnSort();
         return true;
     }
 
-    private void bfsSearchRecursion(int[][] matrix, ArrayDeque<Integer> queue, boolean[] used, ArrayList<Path> finalArray)
-    {
-        // Если очередь пуста - выходим.
-        if (queue.isEmpty()) return;
-        // Получаем вершину из очереди.
-        int vertex = queue.getFirst();
-        // Удаляем.
-        queue.pop();
-        // Проходимся по всем смежным с данной вершиной.
-        for (int i = 0; i < matrix.length; i++)
-        {
-            if (matrix[vertex][i] != 0) {
-                // Если мы еще не использовали вершину.
-                if (!used[i])
-                {
-                    // Помечаем ее как посещенную и добавляем назад очереди.
-                    used[i] = true;
-                    queue.push(i);
-                    finalArray.add(rawPaths.get(i));
+    public ArrayList<Path> topologicalKahnSort() {
+        ArrayList<Path> ans = new ArrayList<>();
+        int[] degree = new int[matrix.length];
+        for (int[] ints : matrix) {
+            ArrayList<Integer> flow = new ArrayList<>();
+            int j = 0;
+            while (j < matrix.length) {
+                if (ints[j] >= 1) {
+                    flow.add(j);
                 }
+                j++;
+            }
+            for (int node : flow) {
+                degree[node]++;
             }
         }
-        // Вызываем еще раз.
-        bfsSearchRecursion(matrix, queue, used, finalArray);
-    }
-
-    private ArrayList<Path> bfsRecursion() {
-        ArrayList<Path> finalArray = new ArrayList<>();
-        boolean[] used = new boolean[matrix.length];
-        ArrayDeque<Integer> queue = new ArrayDeque<>();
-        // Запускаем рекурсивный проход по вершинам.
-        for (int i = 0; i < matrix.length; i++)
-        {
-            // Для каждой вершины помечаем ее как найденную и добавляем в конец очереди, вызывая
-            // функцию поиска.
-            if (!used[i])
-            {
-                used[i] = true;
-                queue.push(i);
-                bfsSearchRecursion(matrix, queue, used, finalArray);
-                finalArray.add(rawPaths.get(i));
-            }
+        Queue<Integer> checkList = new LinkedList<>();
+        for (int i = 0; i < matrix.length; i++) {
+            if (degree[i] == 0)
+                checkList.add(i);
         }
-        Collections.reverse(finalArray);
-        return finalArray;
+        Vector<Integer> order = new Vector<>();
+        if (!checkList.isEmpty()) {
+            do {
+                int now_pool = checkList.poll();
+                order.add(now_pool);
+                ArrayList<Integer> adjustment = new ArrayList<>();
+                for (int j = 0; j < matrix.length; j++) {
+                    if (matrix[now_pool][j] >= 1) {
+                        adjustment.add(j);
+                    }
+                }
+                for (int node : adjustment) {
+                    if (--degree[node] == 0)
+                        checkList.add(node);
+                }
+            } while (!checkList.isEmpty());
+        }
+        for (int i : order) {
+            ans.add(rawPaths.get(i));
+        }
+        return ans;
     }
-
 
     private boolean checkIsValid() {
         return isOriented() && !isPseudo() && !containsLoops() && !containsBigLoops();
@@ -91,7 +85,7 @@ public class Graph {
             return true;
         }
         boolean ans = false;
-        for (Path node: now.getDependFiles()) {
+        for (Path node : now.getDependFiles()) {
             ans = ans || dfs(begin, nodeFiles.get(rawPaths.indexOf(node)));
         }
         return ans;
@@ -99,7 +93,7 @@ public class Graph {
 
     private boolean containsBigLoops() {
         boolean ans = false;
-        for (Path now: rawPaths) {
+        for (Path now : rawPaths) {
             for (Path node : nodeFiles.get(rawPaths.indexOf(now)).getDependFiles()) {
                 ans = ans || dfs(nodeFiles.get(rawPaths.indexOf(now)), nodeFiles.get(rawPaths.indexOf(node)));
             }
@@ -124,7 +118,7 @@ public class Graph {
     private boolean isPseudo() {
         for (int[] i : matrix) {
             for (int j : i) {
-                if (j > 1){
+                if (j > 1) {
                     System.out.println("Обнаружены двойные ссылки из одного файла!");
                     return true;
                 }
@@ -146,8 +140,8 @@ public class Graph {
     }
 
     void createMatrix() {
-        for (FileNode i: nodeFiles) {
-            for (Path j: i.getDependFiles()) {
+        for (FileNode i : nodeFiles) {
+            for (Path j : i.getDependFiles()) {
                 matrix[rawPaths.indexOf(j)][rawPaths.indexOf(i.getPath())] += 1;
             }
         }
@@ -166,7 +160,7 @@ public class Graph {
         }
         str.append("\n----------------------------------------------");
         str.append("""
-                
+                                
                 Матрица смежности на основе обратной связи.\040
                 Пути идут из файла, который требуется, в файл, который требует.
                 ----------------------------------------------
