@@ -1,3 +1,4 @@
+import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -82,7 +83,28 @@ public class Graph {
 
 
     private boolean checkIsValid() {
-        return isOriented() && !isPseudo() && !containsLoops();
+        return isOriented() && !isPseudo() && !containsLoops() && !containsBigLoops();
+    }
+
+    private boolean dfs(FileNode begin, FileNode now) {
+        if (begin.getPath() == now.getPath()) {
+            return true;
+        }
+        boolean ans = false;
+        for (Path node: now.getDependFiles()) {
+            ans = ans || dfs(begin, nodeFiles.get(rawPaths.indexOf(node)));
+        }
+        return ans;
+    }
+
+    private boolean containsBigLoops() {
+        boolean ans = false;
+        for (Path now: rawPaths) {
+            for (Path node : nodeFiles.get(rawPaths.indexOf(now)).getDependFiles()) {
+                ans = ans || dfs(nodeFiles.get(rawPaths.indexOf(now)), nodeFiles.get(rawPaths.indexOf(node)));
+            }
+        }
+        return ans;
     }
 
     private boolean containsLoops() {
